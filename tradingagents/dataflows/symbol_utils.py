@@ -141,3 +141,69 @@ def normalize_symbol(raw: str) -> str:
 def is_yahoo_safe(symbol: str) -> bool:
     """True when ``symbol`` only contains characters Yahoo symbols use."""
     return bool(symbol) and _YAHOO_SAFE.fullmatch(symbol) is not None
+
+
+# ---------------------------------------------------------------------------
+# A-share (China A-stock) ticker utilities
+# ---------------------------------------------------------------------------
+
+# Map the Yahoo-style exchange suffix to the lowercase prefix used by
+# Sina Finance and other Chinese financial portals in their URLs.
+_ASHARE_EXCHANGE_PREFIX: dict[str, str] = {
+    ".SZ": "sz",
+    ".SS": "sh",
+    ".BJ": "bj",
+}
+
+# Reverse map for display: lowercase prefix → uppercase suffix.
+_ASHARE_PREFIX_TO_SUFFIX: dict[str, str] = {
+    v: k for k, v in _ASHARE_EXCHANGE_PREFIX.items()
+}
+
+
+def is_ashare(ticker: str) -> bool:
+    """Return ``True`` when *ticker* appears to be an A-stock.
+
+    Detects the Yahoo-format exchange suffixes ``.SZ`` (Shenzhen), ``.SS``
+    (Shanghai), and ``.BJ`` (Beijing / New Third Board).
+
+    >>> is_ashare("000858.SZ")
+    True
+    >>> is_ashare("601318.SS")
+    True
+    >>> is_ashare("AAPL")
+    False
+    """
+    if not isinstance(ticker, str):
+        return False
+    return ticker.strip().upper().endswith((".SZ", ".SS", ".BJ"))
+
+
+def ashare_bare_code(ticker: str) -> str:
+    """Strip the exchange suffix from an A-stock ticker.
+
+    ``000858.SZ`` → ``000858``, ``601318.SS`` → ``601318``.
+    Returns the ticker unchanged when the suffix is not recognised.
+    """
+    if not isinstance(ticker, str):
+        return ticker
+    upper = ticker.strip().upper()
+    for suffix in _ASHARE_EXCHANGE_PREFIX:
+        if upper.endswith(suffix):
+            return upper[: -len(suffix)]
+    return upper
+
+
+def ashare_exchange_prefix(ticker: str) -> str:
+    """Return the lowercase exchange prefix for a Chinese financial portal URL.
+
+    ``000858.SZ`` → ``"sz"``, ``601318.SS`` → ``"sh"``.
+    Returns ``""`` when the suffix is not recognised.
+    """
+    if not isinstance(ticker, str):
+        return ""
+    upper = ticker.strip().upper()
+    for suffix, prefix in _ASHARE_EXCHANGE_PREFIX.items():
+        if upper.endswith(suffix):
+            return prefix
+    return ""

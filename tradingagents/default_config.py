@@ -124,6 +124,12 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "geopolitical risk trade war sanctions",
         "ECB Bank of England BOJ central bank policy",
         "oil commodities supply chain energy",
+        # Chinese / Asian market queries — surface alongside US/EU coverage
+        # for global macro context. The yfinance Search backend handles
+        # both English and Chinese keywords.
+        "中国央行 货币政策 降准降息 人民银行",
+        "A股 沪深300 上市公司 财报 盈利 经济展望",
+        "北向资金 人民币汇率 中美贸易 关税",
     ],
     # Data vendor configuration
     # Category-level configuration (default for all tools in category).
@@ -131,9 +137,9 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # routed to vendors you didn't choose. For ordered fallback, list several,
     # e.g. "yfinance,alpha_vantage". "default" uses all available vendors.
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
+        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance, eastmoney
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
-        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
+        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance, eastmoney
         "news_data": "yfinance",             # Options: alpha_vantage, yfinance
         "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
         "prediction_markets": "polymarket",  # Options: polymarket (keyless)

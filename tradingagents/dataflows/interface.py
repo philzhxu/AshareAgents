@@ -12,6 +12,13 @@ from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
 )
 from .config import get_config
+from .eastmoney_market import (
+    get_eastmoney_balance_sheet,
+    get_eastmoney_cashflow,
+    get_eastmoney_fundamentals,
+    get_eastmoney_income_statement,
+    get_eastmoney_stock,
+)
 from .errors import (
     NoMarketDataError,
     VendorNotConfiguredError,
@@ -19,6 +26,7 @@ from .errors import (
 )
 from .fred import get_macro_data as get_fred_macro_data
 from .polymarket import get_prediction_markets as get_polymarket_prediction_markets
+from .symbol_utils import is_ashare
 from .y_finance import (
     get_balance_sheet as get_yfinance_balance_sheet,
     get_cashflow as get_yfinance_cashflow,
@@ -82,6 +90,7 @@ VENDOR_LIST = [
     "fred",
     "polymarket",
     "alpha_vantage",
+    "eastmoney",
 ]
 
 # Optional enrichment categories. These add macro/event context to the news
@@ -97,6 +106,7 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "eastmoney": get_eastmoney_stock,
     },
     # technical_indicators
     "get_indicators": {
@@ -107,18 +117,22 @@ VENDOR_METHODS = {
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
+        "eastmoney": get_eastmoney_fundamentals,
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
+        "eastmoney": get_eastmoney_balance_sheet,
     },
     "get_cashflow": {
         "alpha_vantage": get_alpha_vantage_cashflow,
         "yfinance": get_yfinance_cashflow,
+        "eastmoney": get_eastmoney_cashflow,
     },
     "get_income_statement": {
         "alpha_vantage": get_alpha_vantage_income_statement,
         "yfinance": get_yfinance_income_statement,
+        "eastmoney": get_eastmoney_income_statement,
     },
     # news_data
     "get_news": {
@@ -191,6 +205,22 @@ def route_to_vendor(method: str, *args, **kwargs):
             )
     else:
         vendor_chain = all_available_vendors
+
+    # A-stock auto-routing: when the ticker looks like an A-stock (``.SZ`` /
+    # ``.SS`` / ``.BJ`` suffix), prepend the East Money vendor so Chinese
+    # market data is fetched from a source that actually covers these tickers.
+    # East Money raises NoMarketDataError for unimplemented methods (balance
+    # sheet, cash flow, income statement), so the router naturally falls
+    # through to the next vendor.
+    if (
+        args
+        and isinstance(args[0], str)
+        and is_ashare(args[0])
+        and "eastmoney" in VENDOR_METHODS.get(method, {})
+    ):
+        if "eastmoney" in vendor_chain:
+            vendor_chain.remove("eastmoney")
+        vendor_chain.insert(0, "eastmoney")
 
     last_no_data: NoMarketDataError | None = None
     first_error: Exception | None = None
