@@ -17,7 +17,7 @@ TradingAgents 是一个优秀的多智能体 LLM 交易框架，但其数据源�
 ### 市场数据源
 
 | 原项目 | AShareAgents |
-|--------|-------------|
+| ------ | ------------ |
 | Yahoo Finance K 线数据 | **东方财富** K 线 API（自动检测 A 股后优先使用） |
 | Yahoo Finance 基本面 | **东方财富** datacenter API |
 | Yahoo Finance 财报 | 东方财富（暂未实现，自动回退至 Yahoo Finance） |
@@ -39,6 +39,9 @@ TradingAgents 是一个优秀的多智能体 LLM 交易框架，但其数据源�
 git clone https://github.com/philzhxu/AshareAgents.git
 cd AShareAgents
 
+# 如果之前安装过原版 TradingAgents，先卸载避免冲突
+pip uninstall tradingagents -y
+
 # 创建虚拟环境（推荐 Python 3.10+）
 conda create -n ashareagents python=3.12
 conda activate ashareagents
@@ -46,11 +49,14 @@ conda activate ashareagents
 # 安装（含所有依赖，包括 curl_cffi）
 pip install .
 
-# 设置 LLM API Key（以 OpenAI 为例）
-export OPENAI_API_KEY=your-key-here
+# 复制并编辑环境变量（填入你的 LLM API Key）
+cp .env.example .env
+# 编辑 .env 文件设置 API Key
 
-# 启动
+# 启动 CLI
 tradingagents
+# 或直接运行示例脚本（已配置为 A 股示例）
+python main.py
 ```
 
 然后输入 A 股代码（如 `000858.SZ` 五粮液、`601318.SS` 中国平安）即可。

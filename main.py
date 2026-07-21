@@ -11,8 +11,12 @@ config = DEFAULT_CONFIG.copy()
 # Initialize with custom config
 ta = TradingAgentsGraph(debug=True, config=config)
 
-# forward propagate
-_, decision = ta.propagate("NVDA", "2024-05-10")
+# A-stock example (AShareAgents auto-detects .SZ/.SS/.BJ tickers and
+# switches to Chinese data sources: East Money, Sina Finance, Guba).
+# For US stocks use tickers like "AAPL" or "NVDA" (no suffix) — those
+# will use Yahoo Finance, Reddit, and StockTwits as in the original
+# TradingAgents framework.
+_, decision = ta.propagate("000858.SZ", "2026-07-21")
 print(decision)
 
 # Memorize mistakes and reflect
