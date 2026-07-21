@@ -149,9 +149,11 @@ def is_yahoo_safe(symbol: str) -> bool:
 
 # Map the Yahoo-style exchange suffix to the lowercase prefix used by
 # Sina Finance and other Chinese financial portals in their URLs.
+# Note: both ".SS" (Yahoo) and ".SH" (Wind/Tushare/同花顺) map to "sh".
 _ASHARE_EXCHANGE_PREFIX: dict[str, str] = {
     ".SZ": "sz",
     ".SS": "sh",
+    ".SH": "sh",
     ".BJ": "bj",
 }
 
@@ -164,19 +166,21 @@ _ASHARE_PREFIX_TO_SUFFIX: dict[str, str] = {
 def is_ashare(ticker: str) -> bool:
     """Return ``True`` when *ticker* appears to be an A-stock.
 
-    Detects the Yahoo-format exchange suffixes ``.SZ`` (Shenzhen), ``.SS``
+    Detects the exchange suffixes ``.SZ`` (Shenzhen), ``.SS`` / ``.SH``
     (Shanghai), and ``.BJ`` (Beijing / New Third Board).
 
     >>> is_ashare("000858.SZ")
     True
     >>> is_ashare("601318.SS")
     True
+    >>> is_ashare("600619.SH")
+    True
     >>> is_ashare("AAPL")
     False
     """
     if not isinstance(ticker, str):
         return False
-    return ticker.strip().upper().endswith((".SZ", ".SS", ".BJ"))
+    return ticker.strip().upper().endswith((".SZ", ".SS", ".SH", ".BJ"))
 
 
 def ashare_bare_code(ticker: str) -> str:
