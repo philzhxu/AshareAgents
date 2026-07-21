@@ -16,14 +16,12 @@ from __future__ import annotations
 
 import csv
 import io
-import json
 import logging
 from datetime import datetime
 
 from .symbol_utils import (
     NoMarketDataError,
     ashare_bare_code,
-    is_ashare,
 )
 
 logger = logging.getLogger(__name__)

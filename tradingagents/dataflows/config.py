@@ -1,10 +1,9 @@
 from copy import deepcopy
-from typing import Optional
 
 import tradingagents.default_config as default_config
 
 # Use default config but allow it to be overridden
-_config: Optional[dict] = None
+_config: dict | None = None
 
 
 def initialize_config():

@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime
 
 from .symbol_utils import ashare_bare_code, ashare_exchange_prefix
 
@@ -198,7 +197,6 @@ def _get_news_sina_urllib(
     timeout: float,
 ) -> str:
     """Fallback using standard-library ``urllib`` when ``curl_cffi`` is absent."""
-    import http.client
     from urllib.request import Request, urlopen
 
     req = Request(url, headers={"User-Agent": _UA, "Accept-Language": "zh-CN,zh;q=0.9"})

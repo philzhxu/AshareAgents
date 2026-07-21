@@ -22,8 +22,6 @@ import html as _html
 import json
 import logging
 import re
-import time
-from datetime import datetime
 
 from .symbol_utils import ashare_bare_code
 
@@ -176,7 +174,6 @@ def _fetch_eastmoney_posts_urllib(
     timeout: float,
 ) -> str:
     """Fallback using standard-library ``urllib`` when ``curl_cffi`` is absent."""
-    import http.client
     from urllib.request import Request, urlopen
 
     req = Request(
