@@ -39,17 +39,37 @@ TradingAgents 是一个优秀的多智能体 LLM 交易框架，但其数据源�
 git clone https://github.com/philzhxu/AshareAgents.git
 cd AShareAgents
 
-# 安装依赖
+# 创建虚拟环境（推荐 Python 3.10+）
+conda create -n ashareagents python=3.12
+conda activate ashareagents
+
+# 安装（含所有依赖，包括 curl_cffi）
 pip install .
 
-# 安装额外依赖（中文数据源需要 TLS 指纹伪装）
-pip install curl_cffi
+# 设置 LLM API Key（以 OpenAI 为例）
+export OPENAI_API_KEY=your-key-here
 
-# 运行
-python main.py
+# 启动
+tradingagents
 ```
 
 然后输入 A 股代码（如 `000858.SZ` 五粮液、`601318.SS` 中国平安）即可。
+
+也支持 Python API 调用：
+
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "openai"
+config["deep_think_llm"] = "gpt-5.5"
+config["quick_think_llm"] = "gpt-5.4-mini"
+
+ta = TradingAgentsGraph(debug=True, config=config)
+_, decision = ta.propagate("000858.SZ", "2026-07-21")
+print(decision)
+```
 
 ## 原项目致谢
 
