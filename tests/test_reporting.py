@@ -22,7 +22,9 @@ def _state():
 @pytest.mark.unit
 def test_write_report_tree_creates_files(tmp_path):
     out = write_report_tree(_state(), "AAPL", tmp_path)
-    assert out.name == "complete_report.md"
+    # Naming convention: {ticker}_{stock_name}_{YYYYMMDD}_{HHMM}.md
+    # When stock_name is empty, the plain ticker is used.
+    assert out.name.startswith("AAPL_") and out.name.endswith(".md")
     assert (tmp_path / "1_analysts" / "market.md").read_text() == "MKT"
     assert (tmp_path / "1_analysts" / "news.md").read_text() == "NEWS"
     assert (tmp_path / "2_research" / "manager.md").read_text() == "RM PLAN"
@@ -37,8 +39,9 @@ def test_write_report_tree_creates_files(tmp_path):
 def test_save_reports_explicit_path(tmp_path):
     # Unbound: with an explicit save_path, the method doesn't touch self/config.
     out = TradingAgentsGraph.save_reports(None, _state(), "AAPL", save_path=tmp_path)
-    assert (tmp_path / "complete_report.md").exists()
-    assert out == tmp_path / "complete_report.md"
+    assert out.exists()
+    # Naming convention: {ticker}_{stock_name}_{YYYYMMDD}_{HHMM}.md
+    assert out.name.startswith("AAPL_") and out.name.endswith(".md")
 
 
 @pytest.mark.unit

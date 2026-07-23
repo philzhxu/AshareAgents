@@ -242,7 +242,7 @@ def _format_qa(items: list[dict], ticker: str) -> str:
             lines.append(f"**答** ({item['reply_time']}{status}):")
             lines.append(f"    {item['answer']}")
         else:
-            lines.append(f"**答**: (尚未回复)")
+            lines.append("**答**: (尚未回复)")
         lines.append("")
 
     return "\n".join(lines)

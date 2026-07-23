@@ -38,10 +38,7 @@ def write_report_tree(
 
     # Build the consolidated report filename.
     stamp = now.strftime("%Y%m%d_%H%M")
-    if stock_name:
-        report_filename = f"{ticker}_{stock_name}_{stamp}.md"
-    else:
-        report_filename = f"{ticker}_{stamp}.md"
+    report_filename = f"{ticker}_{stock_name}_{stamp}.md" if stock_name else f"{ticker}_{stamp}.md"
 
     # 1. Analysts
     analysts_dir = save_path / "1_analysts"

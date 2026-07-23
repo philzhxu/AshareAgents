@@ -247,8 +247,8 @@ def resolve_cn_stock_name(ticker: str, timeout: float = 10.0) -> str | None:
     )
 
     try:
-        from urllib.request import Request, urlopen
         import json as _json
+        from urllib.request import Request, urlopen
 
         req = Request(url, headers={
             "User-Agent": (

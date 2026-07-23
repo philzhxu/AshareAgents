@@ -54,7 +54,6 @@ from tradingagents.dataflows.stocktwits import fetch_stocktwits_messages
 from tradingagents.dataflows.symbol_utils import is_ashare
 
 
-
 def _seven_days_back(trade_date: str) -> str:
     return (datetime.strptime(trade_date, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
 
