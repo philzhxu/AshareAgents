@@ -747,9 +747,9 @@ def get_analysis_date():
             )
 
 
-def save_report_to_disk(final_state, ticker: str, save_path: Path):
+def save_report_to_disk(final_state, ticker: str, save_path: Path, stock_name: str = ""):
     """Save the complete analysis report to disk (shared CLI/API writer)."""
-    return write_report_tree(final_state, ticker, save_path)
+    return write_report_tree(final_state, ticker, save_path, stock_name=stock_name)
 
 
 def display_complete_report(final_state):
@@ -1244,18 +1244,38 @@ def run_analysis(checkpoint: bool | None = None):
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
+    # Resolve stock name for folder and file naming.
+    # For A-stocks, prefer the Chinese name from East Money because
+    # yfinance only returns romanised / English names.
+    stock_name = ""
+    try:
+        from tradingagents.dataflows.symbol_utils import resolve_cn_stock_name
+
+        stock_name = resolve_cn_stock_name(selections["ticker"]) or ""
+        if not stock_name:
+            identity = graph.resolve_instrument_identity(selections["ticker"])
+            stock_name = identity.get("company_name", "")
+    except Exception:
+        stock_name = ""
+
     # Prompt to save report
     save_choice = typer.prompt("Save report?", default="Y").strip().upper()
     if save_choice in ("Y", "YES", ""):
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+        if stock_name:
+            default_folder = f"{selections['ticker']}_{stock_name}_{timestamp}"
+        else:
+            default_folder = f"{selections['ticker']}_{timestamp}"
+        default_path = Path.cwd() / "reports" / default_folder
         save_path_str = typer.prompt(
             "Save path (press Enter for default)",
             default=str(default_path)
         ).strip()
         save_path = Path(save_path_str)
         try:
-            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            report_file = save_report_to_disk(
+                final_state, selections["ticker"], save_path, stock_name=stock_name
+            )
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
         except Exception as e:

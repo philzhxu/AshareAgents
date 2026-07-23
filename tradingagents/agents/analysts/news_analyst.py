@@ -8,6 +8,8 @@ from tradingagents.agents.utils.agent_utils import (
     get_news,
     get_prediction_markets,
 )
+from tradingagents.dataflows.sse_announcements import fetch_sse_announcements
+from tradingagents.dataflows.symbol_utils import is_ashare
 
 
 def create_news_analyst(llm):
@@ -24,8 +26,21 @@ def create_news_analyst(llm):
             get_prediction_markets,
         ]
 
+        # For A-stocks, pre-fetch SSE announcements as a supplementary source.
+        # This is injected into the system message so the LLM has it from turn 0
+        # alongside the tool-callable sources, like the sentiment analyst does.
+        ticker = state["company_of_interest"]
+        sse_block = ""
+        if is_ashare(ticker):
+            sse_block = fetch_sse_announcements(ticker, limit=15)
+            sse_extra = _build_sse_section(sse_block)
+        else:
+            sse_extra = ""
+
         system_message = (
-            f"You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(ticker, start_date, end_date) for {asset_label}-specific news by ticker symbol, get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news, get_macro_indicators(indicator, curr_date, look_back_days) to ground macro commentary in actual data from FRED (e.g. 'cpi', 'core_pce', 'unemployment', 'fed_funds_rate', '10y_treasury', 'yield_curve'), and get_prediction_markets(topic, limit) for live market-implied probabilities of forward-looking events (e.g. 'Fed rate cut', 'recession 2026', geopolitical or sector events). Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
+            f"You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(ticker, start_date, end_date) for {asset_label}-specific news by ticker symbol, get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news, get_macro_indicators(indicator, curr_date, look_back_days) to ground macro commentary in actual data from FRED (e.g. 'cpi', 'core_pce', 'unemployment', 'fed_funds_rate', '10y_treasury', 'yield_curve'), and get_prediction_markets(topic, limit) for live market-implied probabilities of forward-looking events (e.g. 'Fed rate cut', 'recession 2026', geopolitical or sector events)."
+            + sse_extra
+            + " Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
             + get_language_instruction()
         )
@@ -67,3 +82,29 @@ def create_news_analyst(llm):
         }
 
     return news_analyst_node
+
+
+def _build_sse_section(sse_block: str) -> str:
+    """Build the SSE announcements section for the news analyst system message.
+
+    Returns an empty string when *sse_block* is empty (non-A-stock tickers),
+    otherwise a pre-fetched supplementary source block.
+    """
+    if not sse_block:
+        return ""
+
+    return f"""
+
+## Supplementary data — 上交所公告 (SSE Announcements, pre-fetched)
+
+The following official Shanghai Stock Exchange announcements have been
+pre-fetched for the target ticker.  These are regulatory disclosures
+(earnings releases, material event announcements, shareholder meeting
+notices, etc.) — the most authoritative source of company-specific news
+in the Chinese market.  Cross-reference these with the tool-fetched news
+for verification.
+
+<start_of_sse_announcements>
+{sse_block}
+<end_of_sse_announcements>
+"""

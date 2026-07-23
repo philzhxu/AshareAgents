@@ -211,3 +211,64 @@ def ashare_exchange_prefix(ticker: str) -> str:
         if upper.endswith(suffix):
             return prefix
     return ""
+
+
+def resolve_cn_stock_name(ticker: str, timeout: float = 10.0) -> str | None:
+    """Resolve the Chinese stock name for an A-stock ticker via East Money.
+
+    East Money (东方财富) provides fast, free, no-auth access to Chinese stock
+    names.  This is the preferred source for report naming because yfinance
+    only returns romanised / English names for A-stocks.
+
+    ``000858.SZ`` → ``"五粮液"``, ``001367.SZ`` → ``"海森药业"``.
+
+    Args:
+        ticker: A-stock ticker with exchange suffix (e.g. ``001367.SZ``).
+        timeout: HTTP request timeout in seconds.
+
+    Returns:
+        The Chinese stock name as a string, or ``None`` on any failure
+        (network error, unrecognised ticker, API format change).
+    """
+    if not is_ashare(ticker):
+        return None
+
+    bare = ashare_bare_code(ticker)
+    prefix = ashare_exchange_prefix(ticker)
+
+    # East Money market ID: 0=Shenzhen/Beijing, 1=Shanghai
+    _EM_MARKET: dict[str, str] = {"sz": "0", "sh": "1", "bj": "0"}
+    market = _EM_MARKET.get(prefix, "0")
+    secid = f"{market}.{bare}"
+
+    url = (
+        "https://push2.eastmoney.com/api/qt/stock/get"
+        f"?secid={secid}&fields=f57,f58"
+    )
+
+    try:
+        from urllib.request import Request, urlopen
+        import json as _json
+
+        req = Request(url, headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            ),
+            "Referer": "https://quote.eastmoney.com/",
+        })
+        with urlopen(req, timeout=timeout) as resp:
+            data = _json.loads(resp.read().decode("utf-8", errors="replace"))
+
+        name = (data.get("data") or {}).get("f58")
+        if name and isinstance(name, str):
+            # East Money sometimes inserts spaces between Chinese characters
+            # (e.g. "五 粮 液").  Remove interstitial whitespace.
+            import re as _re
+
+            cleaned = _re.sub(r"(?<=[一-鿿])\s+(?=[一-鿿])", "", name.strip())
+            return cleaned if cleaned else None
+        return None
+    except Exception:
+        logger.debug("Could not resolve Chinese stock name for %s", ticker)
+        return None

@@ -5,7 +5,7 @@ the old version had a prompt that demanded social-media analysis but the
 only tool available was Yahoo Finance news — which led LLMs to fabricate
 Reddit/X/StockTwits content under prompt pressure (verified live).
 
-The redesigned agent pre-fetches two or three complementary data sources
+The redesigned agent pre-fetches two or more complementary data sources
 before the LLM is invoked and injects them into the prompt as structured
 blocks.  The source set depends on the ticker's market:
 
@@ -13,6 +13,7 @@ blocks.  The source set depends on the ticker's market:
     1. Sina Finance (新浪财经) — stock-specific news
     2. East Money Guba (东方财富股吧) — retail investor forum posts with
        engagement metrics (views, replies) and user nicknames
+    3. Cninfo (巨潮资讯) — official investor interactive Q&A
 
   **US / other markets (default):**
     1. Yahoo Finance news — institutional framing
@@ -45,11 +46,13 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.dataflows.cninfo import fetch_cninfo_qa
 from tradingagents.dataflows.eastmoney_guba import fetch_eastmoney_posts
 from tradingagents.dataflows.reddit import fetch_reddit_posts
 from tradingagents.dataflows.sina_news import get_news_sina
 from tradingagents.dataflows.stocktwits import fetch_stocktwits_messages
 from tradingagents.dataflows.symbol_utils import is_ashare
+
 
 
 def _seven_days_back(trade_date: str) -> str:
@@ -79,6 +82,7 @@ def create_sentiment_analyst(llm):
         if is_ashare(ticker):
             news_block = get_news_sina(ticker, start_date, end_date)
             guba_block = fetch_eastmoney_posts(ticker, limit=30)
+            cninfo_block = fetch_cninfo_qa(ticker, limit=20)
 
             system_message = _build_system_message_cn(
                 ticker=ticker,
@@ -86,6 +90,7 @@ def create_sentiment_analyst(llm):
                 end_date=end_date,
                 news_block=news_block,
                 guba_block=guba_block,
+                cninfo_block=cninfo_block,
             )
         else:
             # Pre-fetch all three sources. Each fetcher degrades gracefully and
@@ -215,14 +220,15 @@ def _build_system_message_cn(
     end_date: str,
     news_block: str,
     guba_block: str,
+    cninfo_block: str,
 ) -> str:
     """Assemble the A-stock (Chinese market) sentiment-analyst system message.
 
-    Uses Sina Finance for institutional news and East Money Guba for
-    retail investor community discussion — the Chinese-market equivalents
-    of Yahoo Finance and Reddit/StockTwits.
+    Uses Sina Finance for institutional news, East Money Guba for retail
+    forum discussion, and Cninfo for official investor relations Q&A —
+    providing multi-angle coverage of Chinese A-stock market sentiment.
     """
-    return f"""You are a financial market sentiment analyst specializing in the Chinese A-stock market. Your task is to produce a comprehensive sentiment report for {ticker} covering the period from {start_date} to {end_date}, drawing on two complementary Chinese-market data sources that have already been collected for you.
+    return f"""You are a financial market sentiment analyst specializing in the Chinese A-stock market. Your task is to produce a comprehensive sentiment report for {ticker} covering the period from {start_date} to {end_date}, drawing on three complementary Chinese-market data sources that have already been collected for you.
 
 ## Data sources (pre-fetched, in this prompt)
 
@@ -240,6 +246,13 @@ East Money Guba is China's largest per-stock retail investor discussion forum �
 {guba_block}
 <end_of_guba>
 
+### Interactive Q&A — 巨潮资讯 (Cninfo), recent
+Cninfo (巨潮资讯网) hosts the official interactive Q&A platform where investors ask questions directly to listed company management. The Q&A exchanges reveal what topics investors are most concerned about, management's communication style and transparency, and whether the company is addressing investor concerns substantively. Responsive, detailed answers signal good IR management; evasive or templated answers may signal issues. This is unique official-channel data — not sentiment speculation, but recorded interactions with the company itself.
+
+<start_of_cninfo>
+{cninfo_block}
+<end_of_cninfo>
+
 ## How to analyze this data (best practices for Chinese markets)
 
 1. **Read the Guba post sentiment through the lens of Chinese retail investor psychology.** Chinese retail investors (散户) dominate A-stock trading volume. Look for:
@@ -247,17 +260,21 @@ East Money Guba is China's largest per-stock retail investor discussion forum �
    - **Bearish signals**: complaints about price manipulation (割韭菜), fear of delisting/ST risk, frustration with continuous decline (阴跌, 跌跌不休), comparison to stronger-performing sectors.
    - **Contrarian indicators**: Extreme bearishness in Guba posts when the stock is already deeply sold off can be a contrarian bottom signal; universal bullishness after a sharp rally can signal a top.
 
-2. **Weight posts by engagement metrics.** A post with 50,000+ views and 30+ replies carries far more community signal than a post with single-digit views. High-engagement posts often set the narrative tone for the entire forum.
+2. **Use Cninfo Q&A to ground sentiment in official information.** Investor questions to management reveal what the market is worried about; management's answers reveal how the company is positioning itself. If management dodges a specific question (e.g. about declining margins or regulatory issues), that avoidance is itself a sentiment signal. If Q&A volume spikes around a specific topic, that topic is the current narrative driver.
 
-3. **Look for cross-source divergences.** If Sina Finance news framing is measured/neutral but Guba posts are overwhelmingly emotional (in either direction), that mismatch is itself a signal. Professional media in China tends to be restrained; Guba captures unfiltered retail emotion.
+3. **Look for cross-source divergences.** Key patterns to watch for:
+   - Sina Finance neutral but Guba emotional → market is moving on sentiment, not news
+   - Guba bullish but Sina Finance cautious → retail enthusiasm may be ahead of fundamentals
+   - Cninfo Q&A focused on a specific risk topic that news/Guba don't mention yet → emerging concern
+   - All three sources pointing in the same direction → strong consensus signal
 
-4. **Distinguish news events from retail chatter.** A Sina Finance article about actual company developments (earnings, regulatory filings, major contracts) is an event. A Guba post saying "白酒yyds,冲!" (baijiu forever, charge!) is pure sentiment. Weight events higher for fundamental assessment; weight chatter higher for short-term sentiment temperature.
+4. **Weight posts by engagement metrics.** A post with 50,000+ views and 30+ replies carries far more community signal than a post with single-digit views. High-engagement posts often set the narrative tone for the entire forum.
 
-5. **Identify recurring narrative themes.** What topics keep appearing across both Sina news and Guba posts? Common A-stock narrative themes include: policy direction (政策方向), sector rotation (板块轮动), earnings surprises, margin trading activity (融资融券), north-bound capital flows (北向资金), and macro-economic indicators.
+5. **Distinguish news events from retail chatter.** A Sina Finance article about actual company developments (earnings, regulatory filings, major contracts) is an event. A Guba post saying "白酒yyds,冲!" (baijiu forever, charge!) is pure sentiment. Weight events higher for fundamental assessment; weight chatter higher for short-term sentiment temperature.
 
-6. **Be honest about data limits.** If one or more sources returned an "<unavailable>" placeholder or only a handful of posts, the sentiment read is less robust — flag this explicitly in the `confidence` field and narrative.
+6. **Identify recurring narrative themes.** What topics keep appearing across all three sources? Common A-stock narrative themes include: policy direction (政策方向), sector rotation (板块轮动), earnings surprises, margin trading activity (融资融券), north-bound capital flows (北向资金), and macro-economic indicators.
 
-7. **Identify catalysts and risks** surfaced by the data — upcoming earnings reports, policy announcements, sector-wide movements, competitive dynamics, macro headwinds or tailwinds.
+7. **Be honest about data limits.** If one or more sources returned an "<unavailable>" placeholder or only a handful of posts, the sentiment read is less robust — flag this explicitly in the `confidence` field and narrative.
 
 8. **Past sentiment is not predictive.** Frame your conclusions as a temperature check for the trader to weigh alongside fundamentals and technicals, not as a price forecast.
 

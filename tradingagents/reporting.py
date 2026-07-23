@@ -1,20 +1,47 @@
 """Reusable report-tree writer shared by the CLI and the programmatic API.
 
 Writes a run's per-section markdown (analysts, research, trading, risk,
-portfolio) plus a consolidated ``complete_report.md`` under ``save_path``. The
-CLI and ``TradingAgentsGraph.save_reports`` both call this, so a headless / API
-run produces the same on-disk report tree a CLI run does.
+portfolio) plus a consolidated report under ``save_path``.  The consolidated
+report is named ``{ticker}_{stock_name}_{YYYYMMDD}_{HHMM}.md`` (e.g.
+``001367.SZ_海森药业_20260723_1010.md``).  When ``stock_name`` is not available
+the plain ticker is used as a fallback.
+
+The CLI and ``TradingAgentsGraph.save_reports`` both call this, so a headless /
+API run produces the same on-disk report tree a CLI run does.
 """
 
 from datetime import datetime
 from pathlib import Path
 
 
-def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
-    """Save a completed run's reports to ``save_path``; return the complete-report path."""
+def write_report_tree(
+    final_state: dict,
+    ticker: str,
+    save_path,
+    stock_name: str = "",
+) -> Path:
+    """Save a completed run's reports to ``save_path``; return the complete-report path.
+
+    Args:
+        final_state: The completed graph state with all report sections.
+        ticker: The ticker symbol (e.g. ``001367.SZ``).
+        save_path: Directory to write the report tree into.
+        stock_name: Human-readable stock/company name (e.g. ``海森药业``).
+            When provided, the consolidated report is named
+            ``{ticker}_{stock_name}_{YYYYMMDD}_{HHMM}.md``; otherwise the
+            timestamp alone is used.
+    """
     save_path = Path(save_path)
     save_path.mkdir(parents=True, exist_ok=True)
     sections = []
+    now = datetime.now()
+
+    # Build the consolidated report filename.
+    stamp = now.strftime("%Y%m%d_%H%M")
+    if stock_name:
+        report_filename = f"{ticker}_{stock_name}_{stamp}.md"
+    else:
+        report_filename = f"{ticker}_{stamp}.md"
 
     # 1. Analysts
     analysts_dir = save_path / "1_analysts"
@@ -96,6 +123,7 @@ def write_report_tree(final_state: dict, ticker: str, save_path) -> Path:
             sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
 
     # Write consolidated report
-    header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-    (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
-    return save_path / "complete_report.md"
+    header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {now.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    report_path = save_path / report_filename
+    report_path.write_text(header + "\n\n".join(sections), encoding="utf-8")
+    return report_path

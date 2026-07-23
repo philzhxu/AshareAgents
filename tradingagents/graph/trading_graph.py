@@ -406,15 +406,37 @@ class TradingAgentsGraph:
 
         Programmatic callers get the same on-disk reports the CLI produces. Pass
         an explicit ``save_path`` or let it default under ``results_dir``.
+
+        The default folder and consolidated report use the naming convention
+        ``{ticker}_{stock_name}_{YYYYMMDD}_{HHMM}`` (e.g.
+        ``001367.SZ_海森药业_20260723_1010/``).
         """
+        # Resolve the stock name for naming.
+        # For A-stocks, prefer the Chinese name from East Money because
+        # yfinance only returns romanised / English names.
+        stock_name = ""
+        try:
+            from tradingagents.dataflows.symbol_utils import resolve_cn_stock_name
+
+            stock_name = resolve_cn_stock_name(ticker) or ""
+            if not stock_name:
+                identity = resolve_instrument_identity(ticker)
+                stock_name = identity.get("company_name", "")
+        except Exception:
+            stock_name = ""
+
         if save_path is None:
-            stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            stamp = datetime.now().strftime("%Y%m%d_%H%M")
+            if stock_name:
+                folder_name = f"{safe_ticker_component(ticker)}_{stock_name}_{stamp}"
+            else:
+                folder_name = f"{safe_ticker_component(ticker)}_{stamp}"
             save_path = (
                 Path(self.config["results_dir"])
                 / "reports"
-                / f"{safe_ticker_component(ticker)}_{stamp}"
+                / folder_name
             )
-        return write_report_tree(final_state, ticker, save_path)
+        return write_report_tree(final_state, ticker, save_path, stock_name=stock_name)
 
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock"):
         """Execute the graph and write the resulting state to disk and memory log."""
