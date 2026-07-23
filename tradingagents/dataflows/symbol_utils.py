@@ -105,6 +105,8 @@ def normalize_symbol(raw: str) -> str:
     """Map a user/broker symbol to its canonical Yahoo Finance symbol.
 
     Resolution order (first match wins):
+      0. A-stock suffix normalisation (``.SH`` → ``.SS``) so Wind / Tushare
+         / 同花顺-style Shanghai tickers work with Yahoo Finance.
       1. Explicit alias table (metals, energy, index CFDs).
       2. Crypto rule: a known crypto base quoted in USD/USDT/USDC (dashed or
          not) -> ``BASE-USD``.
@@ -122,6 +124,13 @@ def normalize_symbol(raw: str) -> str:
     s = raw.strip().upper()
     # Broker CFD/qualifier suffixes Yahoo never uses.
     s = s.rstrip("+")
+
+    # Normalise A-stock suffixes to Yahoo's convention (.SH → .SS).
+    # Wind / Tushare / 同花顺 use ".SH" for Shanghai stocks, but Yahoo
+    # Finance expects ".SS".  Without this, a ticker like 688518.SH would
+    # return no rows from Yahoo.
+    if s.endswith(".SH"):
+        s = s[: -3] + ".SS"
 
     crypto = _normalize_crypto(s)
     if s in _ALIASES:
